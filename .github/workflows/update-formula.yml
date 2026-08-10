@@ -19,31 +19,47 @@ jobs:
         run: |
           set -euo pipefail
           LATEST=$(curl -s https://api.github.com/repos/marioapn3/lightcode/releases/latest | python3 -c "import json,sys; print(json.load(sys.stdin)['tag_name'])")
-          CURRENT=$(grep -oP 'url "https://github.com/marioapn3/lightcode/archive/refs/tags/\K[^"]+' Formula/lightcode.rb)
-          echo "latest=$LATEST"
-          echo "current=$CURRENT"
           echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
-          if [[ "$LATEST" != "$CURRENT" ]]; then
-            echo "new=yes" >> "$GITHUB_OUTPUT"
-          else
-            echo "new=no" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Update formula
-        if: steps.check.outputs.new == 'yes'
         run: |
           set -euo pipefail
           LATEST="${{ steps.check.outputs.latest }}"
-          SHA=$(curl -sL "https://github.com/marioapn3/lightcode/archive/refs/tags/${LATEST}.tar.gz" | shasum -a 256 | cut -d' ' -f1)
-          sed -i "s|archive/refs/tags/[^\"]*\.tar\.gz|archive/refs/tags/${LATEST}.tar.gz|" Formula/lightcode.rb
-          sed -i "s|^  sha256 \".*\"$|  sha256 \"${SHA}\"|" Formula/lightcode.rb
-          echo "formula updated to ${LATEST} (sha256 ${SHA})"
+          ARM_SHA=$(curl -sL "https://github.com/marioapn3/lightcode/releases/download/${LATEST}/lightcode-darwin-aarch64" | shasum -a 256 | cut -d' ' -f1)
+          SRC_SHA=$(curl -sL "https://github.com/marioapn3/lightcode/archive/refs/tags/${LATEST}.tar.gz" | shasum -a 256 | cut -d' ' -f1)
+          python3 - "$ARM_SHA" "$SRC_SHA" "$LATEST" <<'PY'
+          import re, sys
+          arm_sha, src_sha, latest = sys.argv[1], sys.argv[2], sys.argv[3]
+          p = "Formula/lightcode.rb"
+          s = open(p).read()
+
+          def block(f):
+              m = re.search(f + r"\s*do\s*\n\s*url \"([^\"]+)\"\n\s*sha256 \"([^\"]+)\"", s)
+              assert m, f + " block not found"
+              return m
+
+          # arm: prebuilt binary
+          m = block("on_arm")
+          s = s.replace(m.group(1), f"https://github.com/marioapn3/lightcode/releases/download/{latest}/lightcode-darwin-aarch64")
+          s = s.replace(m.group(2), arm_sha)
+
+          # intel: source tarball
+          m = block("on_intel")
+          s = s.replace(m.group(1), f"https://github.com/marioapn3/lightcode/archive/refs/tags/{latest}.tar.gz")
+          s = s.replace(m.group(2), src_sha)
+
+          open(p, "w").write(s)
+          PY
+          grep -E "url|sha256" Formula/lightcode.rb
 
       - name: Commit and push
-        if: steps.check.outputs.new == 'yes'
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Formula/lightcode.rb
-          git commit -m "chore: update formula to ${{ steps.check.outputs.latest }}"
-          git push
+          if git diff --quiet Formula/lightcode.rb; then
+            echo "no changes"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add Formula/lightcode.rb
+            git commit -m "chore: update formula to ${{ steps.check.outputs.latest }}"
+            git push
+          fi
