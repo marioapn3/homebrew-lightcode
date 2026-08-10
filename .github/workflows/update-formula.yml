@@ -1,0 +1,49 @@
+name: update-formula
+
+on:
+  schedule:
+    - cron: "17 */4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for new lightcode release
+        id: check
+        run: |
+          set -euo pipefail
+          LATEST=$(curl -s https://api.github.com/repos/marioapn3/lightcode/releases/latest | python3 -c "import json,sys; print(json.load(sys.stdin)['tag_name'])")
+          CURRENT=$(grep -oP 'url "https://github.com/marioapn3/lightcode/archive/refs/tags/\K[^"]+' Formula/lightcode.rb)
+          echo "latest=$LATEST"
+          echo "current=$CURRENT"
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+          if [[ "$LATEST" != "$CURRENT" ]]; then
+            echo "new=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "new=no" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update formula
+        if: steps.check.outputs.new == 'yes'
+        run: |
+          set -euo pipefail
+          LATEST="${{ steps.check.outputs.latest }}"
+          SHA=$(curl -sL "https://github.com/marioapn3/lightcode/archive/refs/tags/${LATEST}.tar.gz" | shasum -a 256 | cut -d' ' -f1)
+          sed -i "s|archive/refs/tags/[^\"]*\.tar\.gz|archive/refs/tags/${LATEST}.tar.gz|" Formula/lightcode.rb
+          sed -i "s|^  sha256 \".*\"$|  sha256 \"${SHA}\"|" Formula/lightcode.rb
+          echo "formula updated to ${LATEST} (sha256 ${SHA})"
+
+      - name: Commit and push
+        if: steps.check.outputs.new == 'yes'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/lightcode.rb
+          git commit -m "chore: update formula to ${{ steps.check.outputs.latest }}"
+          git push
