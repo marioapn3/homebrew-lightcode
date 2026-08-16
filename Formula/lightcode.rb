@@ -4,13 +4,13 @@ class Lightcode < Formula
   license "MIT"
 
   on_arm do
-    url "https://github.com/marioapn3/lightcode/releases/download/v0.3.4/lightcode-darwin-aarch64"
-    sha256 "3973dae7c993d067a872eab2ee02b0658916f3455f52ea11c0affca19f229420"
+    url "https://github.com/marioapn3/lightcode/releases/download/v0.3.5/lightcode-darwin-aarch64"
+    sha256 "820bd305773a606b81898e9b7ba600d8141f11b7d4c9fb48837d6473568c22ed"
   end
 
   on_intel do
-    url "https://github.com/marioapn3/lightcode/archive/refs/tags/v0.3.4.tar.gz"
-    sha256 "2b87663e61d79e7989fbff46b1adc23baa748720848a2a7f094d22d459759cc5"
+    url "https://github.com/marioapn3/lightcode/archive/refs/tags/v0.3.5.tar.gz"
+    sha256 "1b716fe2c94e297ed2a61a55d80c1bdb8a78eb633b8dd0fcee5301b81031ee97"
     depends_on "rust" => :build
   end
 
