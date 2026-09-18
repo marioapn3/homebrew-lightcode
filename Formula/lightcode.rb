@@ -5,7 +5,7 @@ class Lightcode < Formula
 
   on_arm do
     url "https://github.com/marioapn3/lightcode/releases/download/v0.3.21/lightcode-darwin-aarch64"
-    sha256 "bef140a1a96994029153dca8c00b1750b9a5a764fb9db2dc68d7bb40e8a29e8a"
+    sha256 "b98104e9bb455b6d86d4feaf1038a0cfd8b3007ddb0c7f50fcf2fa9fd601b94d"
   end
 
   on_intel do
